@@ -1,9 +1,11 @@
 # Enterprise-RAG-Knowledge-Assistant
 Enterprise AI Knowledge Assistant
 A production-grade, fully local RAG (Retrieval-Augmented Generation) system that lets you upload PDF documents and ask questions about them using AI. No API keys, no cloud services — everything runs on your machine.
+
 📋 Table of Contents
 
 Overview
+
 Architecture
 Features
 Tech Stack
@@ -30,37 +32,85 @@ Production-ready — async job queue, JWT auth, Prometheus metrics, Grafana dash
 Extensible — MCP tool interface for plugging in web search, calculators, databases, and more
 Observable — every pipeline stage is instrumented and visualised
 
+## Key Features
 
+- PDF document ingestion and chunking
+- Vector search using Qdrant
+- Retrieval-Augmented Generation (RAG)
+- LangGraph workflow orchestration
+- Ollama-powered local LLM inference
+- Input and output guardrails
+- MCP-compatible tool integration
+- Background document processing with Redis + ARQ
+- RAGAS evaluation metrics dashboard
+- FastAPI production-ready backend
+- Streamlit user interface
+  
 Architecture
+## System Architecture
 
-┌─────────────────────────────────────────────────────────────────────┐
-│  Streamlit UI  (port 8501)                                          │
-│   ├── 💬 Chat tab — Q&A with source attribution                     │
-│   └── 📊 Evaluation Dashboard — RAGAS metrics                       │
-└──────────────────────┬──────────────────────────────────────────────┘
-                       │ HTTP + X-API-Key / Bearer JWT
-┌──────────────────────▼──────────────────────────────────────────────┐
-│  FastAPI Backend  (port 8000)                                        │
-│   ├── POST /api/v1/documents/upload  → Redis queue                  │
-│   ├── GET  /api/v1/documents/{id}/status → poll ingest progress     │
-│   ├── POST /api/v1/query             → LangGraph pipeline           │
-│   ├── POST /api/v1/evaluate          → RAGAS metrics                │
-│   └── GET  /api/v1/metrics           → Prometheus scrape endpoint   │
-└──────┬──────────────────┬─────────────────────┬─────────────────────┘
-       │                  │                     │
-┌──────▼──────┐  ┌────────▼────────┐  ┌────────▼──────────────────┐
-│   Qdrant    │  │     Ollama      │  │       Redis               │
-│  port 6333  │  │   port 11434    │  │      port 6379            │
-│  Vector DB  │  │  Llama 3.1 8B   │  │  ARQ job queue +          │
-│  HNSW index │  │  local LLM      │  │  ingest status store      │
-└─────────────┘  └─────────────────┘  └───────────┬───────────────┘
-                                                   │
-                                        ┌──────────▼──────────┐
-                                        │   Worker Process    │
-                                        │  (ARQ background)   │
-                                        │  PDF → chunks →     │
-                                        │  embed → Qdrant     │
-                                        └─────────────────────┘
+```mermaid
+flowchart TB
+
+    UI["Streamlit UI<br/>Port 8501<br/><br/>💬 Chat Interface<br/>📊 RAGAS Dashboard"]
+
+    API["FastAPI Backend<br/>Port 8000"]
+
+    UI -->|"HTTP + API Key / JWT"| API
+
+    API -->|"Vector Search"| QDRANT["Qdrant<br/>Port 6333<br/>Vector Database<br/>HNSW Index"]
+
+    API -->|"LLM Inference"| OLLAMA["Ollama<br/>Port 11434<br/>Llama 3.1 8B"]
+
+    API -->|"Job Queue"| REDIS["Redis<br/>Port 6379<br/>ARQ Queue<br/>Status Store"]
+
+    REDIS --> WORKER["Background Worker<br/>ARQ"]
+
+    WORKER -->|"PDF → Chunk → Embed"| QDRANT
+
+    API -.-> UPLOAD["POST /documents/upload"]
+    API -.-> STATUS["GET /documents/{id}/status"]
+    API -.-> QUERY["POST /query"]
+    API -.-> EVAL["POST /evaluate"]
+    API -.-> METRICS["GET /metrics"]
+```
+## LangGraph Workflow
+
+```mermaid
+flowchart TD
+
+    Q["User Question"]
+
+    GI["Input Guardrails"]
+
+    RET["Retrieve<br/>Embed Query<br/>Qdrant Similarity Search"]
+
+    MCP["Tool Layer<br/>Calculator<br/>Web Search<br/>Custom MCP Tools"]
+
+    GEN["Generate Response<br/>Ollama Llama 3.1 8B"]
+
+    GO["Output Guardrails"]
+
+    BLOCK["Request Blocked"]
+
+    ENDNODE["Final Response"]
+
+    Q --> GI
+
+    GI -->|Clean| RET
+    GI -->|Prompt Injection Detected| BLOCK
+
+    RET --> MCP
+    MCP --> GEN
+
+    GEN --> GO
+
+    GO -->|Clean| ENDNODE
+    GO -->|PII Detected| BLOCK
+
+    BLOCK --> ENDNODE
+```
+
 
 Features
 
