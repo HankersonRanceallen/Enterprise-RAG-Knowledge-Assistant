@@ -32,34 +32,34 @@ Observable — every pipeline stage is instrumented and visualised
 
 
 Architecture
-┌─────────────────────────────────────────────────────────────────────┐
-│  Streamlit UI  (port 8501)                                          │
-│   ├── 💬 Chat tab — Q&A with source attribution                     │
-│   └── 📊 Evaluation Dashboard — RAGAS metrics                       │
-└──────────────────────┬──────────────────────────────────────────────┘
-                       │ HTTP + X-API-Key / Bearer JWT
-┌──────────────────────▼──────────────────────────────────────────────┐
-│  FastAPI Backend  (port 8000)                                        │
-│   ├── POST /api/v1/documents/upload  → Redis queue                  │
-│   ├── GET  /api/v1/documents/{id}/status → poll ingest progress     │
-│   ├── POST /api/v1/query             → LangGraph pipeline           │
-│   ├── POST /api/v1/evaluate          → RAGAS metrics                │
-│   └── GET  /api/v1/metrics           → Prometheus scrape endpoint   │
-└──────┬──────────────────┬─────────────────────┬─────────────────────┘
-       │                  │                     │
-┌──────▼──────┐  ┌────────▼────────┐  ┌────────▼──────────────────┐
-│   Qdrant    │  │     Ollama      │  │       Redis               │
-│  port 6333  │  │   port 11434    │  │      port 6379            │
-│  Vector DB  │  │  Llama 3.1 8B   │  │  ARQ job queue +          │
-│  HNSW index │  │  local LLM      │  │  ingest status store      │
-└─────────────┘  └─────────────────┘  └───────────┬───────────────┘
-                                                   │
-                                        ┌──────────▼──────────┐
-                                        │   Worker Process    │
-                                        │  (ARQ background)   │
-                                        │  PDF → chunks →     │
-                                        │  embed → Qdrant     │
-                                        └─────────────────────┘
+            ┌─────────────────────────────────────────────────────────────────────┐
+            │  Streamlit UI  (port 8501)                                          │
+            │   ├── 💬 Chat tab — Q&A with source attribution                     │
+            │   └── 📊 Evaluation Dashboard — RAGAS metrics                       │
+            └──────────────────────┬──────────────────────────────────────────────┘
+                                   │ HTTP + X-API-Key / Bearer JWT
+            ┌──────────────────────▼──────────────────────────────────────────────┐
+            │  FastAPI Backend  (port 8000)                                        │
+            │   ├── POST /api/v1/documents/upload  → Redis queue                  │
+            │   ├── GET  /api/v1/documents/{id}/status → poll ingest progress     │
+            │   ├── POST /api/v1/query             → LangGraph pipeline           │
+            │   ├── POST /api/v1/evaluate          → RAGAS metrics                │
+            │   └── GET  /api/v1/metrics           → Prometheus scrape endpoint   │
+            └──────┬──────────────────┬─────────────────────┬─────────────────────┘
+                   │                  │                     │
+            ┌──────▼──────┐  ┌────────▼────────┐  ┌────────▼──────────────────┐
+            │   Qdrant    │  │     Ollama      │  │       Redis               │
+            │  port 6333  │  │   port 11434    │  │      port 6379            │
+            │  Vector DB  │  │  Llama 3.1 8B   │  │  ARQ job queue +          │
+            │  HNSW index │  │  local LLM      │  │  ingest status store      │
+            └─────────────┘  └─────────────────┘  └───────────┬───────────────┘
+                                                               │
+                                                    ┌──────────▼──────────┐
+                                                    │   Worker Process    │
+                                                    │  (ARQ background)   │
+                                                    │  PDF → chunks →     │
+                                                    │  embed → Qdrant     │
+                                                    └─────────────────────┘
 
 Features
 
