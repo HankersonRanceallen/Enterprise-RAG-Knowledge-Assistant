@@ -49,23 +49,34 @@ Observable — every pipeline stage is instrumented and visualised
 Architecture
 ## System Architecture
 
-## System Architecture
-
-```mermaid
-flowchart TB
-
-    Streamlit["Streamlit UI :8501"]
-    FastAPI["FastAPI Backend :8000"]
-
-    Streamlit -->|"HTTP / JWT"| FastAPI
-
-    FastAPI --> Qdrant["Qdrant :6333"]
-    FastAPI --> Ollama["Ollama :11434"]
-    FastAPI --> Redis["Redis :6379"]
-
-    Redis --> Worker["ARQ Worker"]
-
-    Worker -->|"PDF -> Chunk -> Embed"| Qdrant
+```text
+┌───────────────────────────────────────────┐
+│               Streamlit UI                │
+│                 Port 8501                 │
+└───────────────────┬───────────────────────┘
+                    │
+                    ▼
+┌───────────────────────────────────────────┐
+│              FastAPI Backend              │
+│                 Port 8000                 │
+└───────┬───────────────┬───────────────────┘
+        │               │
+        ▼               ▼
+┌───────────────┐ ┌───────────────┐
+│    Qdrant     │ │    Ollama     │
+│   Vector DB   │ │  Llama 3.1    │
+└───────▲───────┘ └───────────────┘
+        │
+        │
+┌───────┴───────┐
+│  ARQ Worker   │
+│ PDF → Embed   │
+└───────▲───────┘
+        │
+┌───────┴───────┐
+│     Redis     │
+│ Job Queue     │
+└───────────────┘
 ```
 ## LangGraph Workflow
 
