@@ -49,30 +49,23 @@ Observable — every pipeline stage is instrumented and visualised
 Architecture
 ## System Architecture
 
+## System Architecture
+
 ```mermaid
 flowchart TB
 
-    UI["Streamlit UI<br/>Port 8501<br/><br/>💬 Chat Interface<br/>📊 RAGAS Dashboard"]
+    Streamlit["Streamlit UI :8501"]
+    FastAPI["FastAPI Backend :8000"]
 
-    API["FastAPI Backend<br/>Port 8000"]
+    Streamlit -->|"HTTP / JWT"| FastAPI
 
-    UI -->|"HTTP + API Key / JWT"| API
+    FastAPI --> Qdrant["Qdrant :6333"]
+    FastAPI --> Ollama["Ollama :11434"]
+    FastAPI --> Redis["Redis :6379"]
 
-    API -->|"Vector Search"| QDRANT["Qdrant<br/>Port 6333<br/>Vector Database<br/>HNSW Index"]
+    Redis --> Worker["ARQ Worker"]
 
-    API -->|"LLM Inference"| OLLAMA["Ollama<br/>Port 11434<br/>Llama 3.1 8B"]
-
-    API -->|"Job Queue"| REDIS["Redis<br/>Port 6379<br/>ARQ Queue<br/>Status Store"]
-
-    REDIS --> WORKER["Background Worker<br/>ARQ"]
-
-    WORKER -->|"PDF → Chunk → Embed"| QDRANT
-
-    API -.-> UPLOAD["POST /documents/upload"]
-    API -.-> STATUS["GET /documents/{id}/status"]
-    API -.-> QUERY["POST /query"]
-    API -.-> EVAL["POST /evaluate"]
-    API -.-> METRICS["GET /metrics"]
+    Worker -->|"PDF -> Chunk -> Embed"| Qdrant
 ```
 ## LangGraph Workflow
 
