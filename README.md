@@ -60,26 +60,6 @@ Architecture
                                         │  PDF → chunks →     │
                                         │  embed → Qdrant     │
                                         └─────────────────────┘
-LangGraph RAG Pipeline
-[question]
-     │
-     ▼
-guardrail_input ──── blocked? ──► blocked ──► END
-     │ (clean)
-     ▼
-  retrieve        (embed query → Qdrant similarity search)
-     │
-     ▼
- mcp_tools        (calculator, web search, custom tools)
-     │
-     ▼
-  generate        (Ollama Llama 3.1 8B with context prompt)
-     │
-     ▼
-guardrail_output ─── PII found? ──► END (blocked)
-     │ (clean)
-     ▼
-    END
 
 Features
 
