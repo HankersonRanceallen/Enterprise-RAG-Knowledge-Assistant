@@ -157,58 +157,64 @@ Type your question in the chat box
 
 
 Project Structure
+## Project Structure
+
+```text
 enterprise-ai-assistant/
 │
-├── docker-compose.yml              # All 8 services wired together
+├── docker-compose.yml                 # All services wired together
+│
 ├── scripts/
-│   └── start.sh                    # One-command bootstrap
+│   └── start.sh                       # One-command bootstrap
 │
 ├── backend/
 │   ├── Dockerfile
 │   ├── requirements.txt
 │   │
 │   ├── api/
-│   │   ├── main.py                 # FastAPI app, middleware, route registration
-│   │   ├── auth.py                 # JWT + API key authentication
-│   │   ├── config.py               # All settings via environment variables
-│   │   ├── monitoring.py           # Prometheus metrics + middleware
-│   │   ├── queue.py                # ARQ Redis connection pool
+│   │   ├── main.py                    # FastAPI app, middleware, route registration
+│   │   ├── auth.py                    # JWT + API key authentication
+│   │   ├── config.py                  # Environment-based configuration
+│   │   ├── monitoring.py              # Prometheus metrics + middleware
+│   │   ├── queue.py                   # ARQ Redis connection pool
+│   │   │
 │   │   └── routes/
-│   │       ├── auth_routes.py      # /auth/token, /auth/me
-│   │       ├── documents.py        # /documents/upload, /documents/{id}/status
-│   │       ├── query.py            # /query — main RAG endpoint
-│   │       ├── evaluation.py       # /evaluate — RAGAS metrics
-│   │       └── health.py           # /health — service status
+│   │       ├── auth_routes.py         # /auth/token, /auth/me
+│   │       ├── documents.py           # Upload + ingest status endpoints
+│   │       ├── query.py               # Main RAG endpoint
+│   │       ├── evaluation.py          # RAGAS evaluation endpoint
+│   │       └── health.py              # Service health checks
 │   │
 │   ├── pipeline/
-│   │   ├── graph.py                # LangGraph RAG workflow
-│   │   ├── ingestor.py             # PDF → chunks → embeddings → Qdrant
-│   │   └── vectorstore.py          # Qdrant async client operations
+│   │   ├── graph.py                   # LangGraph workflow
+│   │   ├── ingestor.py                # PDF → chunks → embeddings
+│   │   └── vectorstore.py             # Qdrant async operations
 │   │
 │   ├── worker/
-│   │   └── tasks.py                # ARQ background ingest task
+│   │   └── tasks.py                   # ARQ background jobs
 │   │
 │   ├── tools/
-│   │   └── mcp_tools.py            # MCP tool interface + calculator
+│   │   └── mcp_tools.py               # MCP tools + calculator
 │   │
 │   ├── guardrails/
-│   │   └── checker.py              # Input/output safety checks
+│   │   └── checker.py                 # Prompt injection & PII detection
 │   │
 │   └── evaluation/
-│       └── metrics.py              # RAGAS evaluation runner
+│       └── metrics.py                 # RAGAS evaluation runner
 │
 ├── frontend/
 │   ├── Dockerfile
 │   ├── requirements.txt
-│   └── app.py                      # Streamlit chat UI + eval dashboard
+│   └── app.py                         # Streamlit chat UI + evaluation dashboard
 │
 └── docker/
-    ├── prometheus.yml               # Prometheus scrape config
+    ├── prometheus.yml                 # Prometheus scrape configuration
+    │
     └── grafana/
         └── provisioning/
-            ├── datasources/         # Auto-wires Prometheus datasource
-            └── dashboards/          # Pre-built RAG metrics dashboard
-
+            ├── datasources/           # Auto-configured Prometheus datasource
+            └── dashboards/            # Pre-built RAG metrics dashboards
+```
 How It Works
 PDF Ingestion
 
