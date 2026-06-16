@@ -217,167 +217,337 @@ enterprise-ai-assistant/
 ```
 How It Works
 PDF Ingestion
+## PDF Ingestion Pipeline
 
-User uploads PDF via the Streamlit UI
-FastAPI saves file to disk and enqueues an ARQ job — returns in milliseconds
-Background worker picks up the job from Redis
-pdfplumber extracts text page by page
-SHA-256 hash checked — duplicate PDFs are detected and skipped
-RecursiveCharacterTextSplitter splits text into overlapping chunks that respect sentence boundaries
-all-MiniLM-L6-v2 converts each chunk to a 384-dim embedding vector (runs locally on CPU)
-Vectors and metadata (filename, page number, text) upserted to Qdrant
-Status written to Redis — UI polls and displays "complete"
+1. User uploads a PDF through the Streamlit interface.
+2. FastAPI saves the file and enqueues an ARQ background job.
+3. Redis stores the job and returns immediately.
+4. An ARQ worker picks up the task.
+5. `pdfplumber` extracts text page-by-page.
+6. A SHA-256 hash is generated to detect duplicate documents.
+7. `RecursiveCharacterTextSplitter` creates overlapping chunks.
+8. `all-MiniLM-L6-v2` generates 384-dimensional embeddings.
+9. Chunks and metadata are stored in Qdrant.
+10. Status updates are written to Redis.
+11. Streamlit polls the status endpoint and displays completion progress.
 
-Query Pipeline (LangGraph)
+---
 
-guardrail_input — scans for prompt injection patterns; short-circuits to END if triggered
-retrieve — embeds question, searches Qdrant via HNSW cosine similarity, filters by score threshold
-mcp_tools — runs enabled tools to augment context (best-effort, never blocks pipeline)
-generate — builds structured prompt with retrieved context, calls Ollama, handles timeouts gracefully
-guardrail_output — scans response for PII before returning; blocks if found
-Response returned with answer, source chunks with page numbers, latency, and guardrail status
+## Query Pipeline (LangGraph)
 
+### 1. Input Guardrails
 
-API Reference
-Authentication
-Option 1 — API Key:
-bashcurl -H "X-API-Key: dev-key-1" http://localhost:8000/api/v1/documents
-Option 2 — JWT Token:
-bashTOKEN=$(curl -s -X POST http://localhost:8000/api/v1/auth/token \
-  -d "username=admin&password=adminpassword" | jq -r .access_token)
+* Detect prompt injection attempts.
+* Block malicious requests before retrieval.
 
-curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/v1/documents
-Endpoints
-MethodEndpointAuthDescriptionGET/api/v1/healthNoneService status checkPOST/api/v1/auth/tokenNoneGet JWT tokenGET/api/v1/auth/meRequiredCurrent user infoPOST/api/v1/documents/uploadRequiredUpload PDF (async)GET/api/v1/documents/{id}/statusRequiredPoll ingest statusGET/api/v1/documentsRequiredList all documentsDELETE/api/v1/documents/{id}RequiredDelete documentPOST/api/v1/queryRequiredAsk a questionPOST/api/v1/evaluateRequiredRun RAGAS evaluationGET/api/v1/evaluate/demoRequiredDemo metricsGET/api/v1/metricsNonePrometheus metrics
-Query example
-bashcurl -X POST http://localhost:8000/api/v1/query \
-  -H "X-API-Key: dev-key-1" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "question": "What is the refund policy?",
-    "top_k": 5,
-    "doc_filter": null
-  }'
-json{
-  "answer": "Customers may request a full refund within 30 days of purchase...",
+### 2. Retrieval
+
+* Embed user query.
+* Perform HNSW cosine similarity search in Qdrant.
+* Filter results using similarity threshold.
+
+### 3. MCP Tools
+
+* Execute optional tools.
+* Calculator
+* Web Search
+* Custom MCP integrations
+
+### 4. Generation
+
+* Build structured context prompt.
+* Send prompt to Ollama.
+* Generate answer using Llama 3.1 8B.
+
+### 5. Output Guardrails
+
+* Scan response for PII.
+* Block unsafe output if detected.
+
+### Response Payload
+
+* Generated answer
+* Source chunks
+* Page references
+* Latency metrics
+* Guardrail status
+
+---
+
+# API Reference
+
+## Authentication
+
+### API Key
+
+```bash
+curl -H "X-API-Key: dev-key-1" \
+http://localhost:8000/api/v1/documents
+```
+
+### JWT Token
+
+```bash
+TOKEN=$(curl -s -X POST \
+http://localhost:8000/api/v1/auth/token \
+-d "username=admin&password=adminpassword" \
+| jq -r .access_token)
+
+curl -H "Authorization: Bearer $TOKEN" \
+http://localhost:8000/api/v1/documents
+```
+
+---
+
+## Endpoints
+
+| Method | Endpoint                      | Auth | Description        |
+| ------ | ----------------------------- | ---- | ------------------ |
+| GET    | /api/v1/health                | No   | Service health     |
+| POST   | /api/v1/auth/token            | No   | Generate JWT       |
+| GET    | /api/v1/auth/me               | Yes  | Current user       |
+| POST   | /api/v1/documents/upload      | Yes  | Upload PDF         |
+| GET    | /api/v1/documents/{id}/status | Yes  | Poll ingest status |
+| GET    | /api/v1/documents             | Yes  | List documents     |
+| DELETE | /api/v1/documents/{id}        | Yes  | Delete document    |
+| POST   | /api/v1/query                 | Yes  | Ask questions      |
+| POST   | /api/v1/evaluate              | Yes  | Run RAGAS          |
+| GET    | /api/v1/evaluate/demo         | Yes  | Demo metrics       |
+| GET    | /api/v1/metrics               | No   | Prometheus metrics |
+
+---
+
+## Query Example
+
+```bash
+curl -X POST http://localhost:8000/api/v1/query \
+-H "X-API-Key: dev-key-1" \
+-H "Content-Type: application/json" \
+-d '{
+  "question": "What is the refund policy?",
+  "top_k": 5,
+  "doc_filter": null
+}'
+```
+
+### Example Response
+
+```json
+{
+  "answer": "Customers may request a full refund within 30 days of purchase.",
   "sources": [
     {
       "doc_id": "abc-123",
       "filename": "policy.pdf",
       "page": 3,
-      "text": "Refund policy states customers may...",
       "score": 0.87
     }
   ],
   "guardrail_triggered": false,
   "latency_ms": 4231.5
 }
+```
 
-Configuration
-VariableDefaultDescriptionOLLAMA_MODELllama3.1:8bAny model available via OllamaOLLAMA_TEMPERATURE0.1Lower = more factual responsesOLLAMA_NUM_CTX4096Context window size in tokensCHUNK_SIZE512Characters per chunkCHUNK_OVERLAP64Overlap between chunksTOP_K5Chunks retrieved per querySIMILARITY_THRESHOLD0.5Minimum similarity score (0-1)GUARDRAILS_ENABLEDtrueToggle output guardrailsJWT_SECRET_KEYrandomChange this in productionAPI_KEYSdev-key-1,dev-key-2Change these in productionMAX_FILE_SIZE_MB50Upload size limit
+---
 
-Monitoring
-Grafana dashboard auto-provisions at http://localhost:3000 with these panels:
+# Configuration
 
-Total Queries — cumulative request count
-Active Queries — live gauge of concurrent requests
-Guardrail Triggers — input vs output stage breakdown
-Query Latency — p50 and p95 over time
-Retrieval Score Distribution — median and p10 similarity scores
-Ingest Throughput — chunks indexed per minute
+| Variable             | Default              |
+| -------------------- | -------------------- |
+| OLLAMA_MODEL         | llama3.1:8b          |
+| OLLAMA_TEMPERATURE   | 0.1                  |
+| OLLAMA_NUM_CTX       | 4096                 |
+| CHUNK_SIZE           | 512                  |
+| CHUNK_OVERLAP        | 64                   |
+| TOP_K                | 5                    |
+| SIMILARITY_THRESHOLD | 0.5                  |
+| GUARDRAILS_ENABLED   | true                 |
+| JWT_SECRET_KEY       | random               |
+| API_KEYS             | dev-key-1, dev-key-2 |
+| MAX_FILE_SIZE_MB     | 50                   |
 
-Recommended alerts
-ConditionMeaningInput guardrail rate spikesSystem is being probedQuery p95 latency > 30sOllama is overloadedRetrieval score median < 0.5Retrieval quality degradingBackend health check failsPipeline is down
+---
 
-Evaluation
-Run RAGAS evaluation from the UI's Evaluation Dashboard tab, or via the API:
-bashcurl -X POST http://localhost:8000/api/v1/evaluate \
-  -H "X-API-Key: dev-key-1" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "samples": [{
-      "question": "What is the refund policy?",
-      "ground_truth": "Full refund within 30 days.",
-      "answer": "Customers can get a refund within 30 days.",
-      "contexts": ["Our policy allows refunds within 30 days..."]
-    }]
-  }'
-MetricWhat it measuresTargetFaithfulnessAnswer grounded in context?> 0.8Answer RelevancyAnswer addresses the question?> 0.8Context PrecisionRetrieved chunks were useful?> 0.7Context RecallContext covers ground truth?> 0.7
+# Monitoring
 
-Extending the System
-Add a different LLM
-bashdocker exec ollama ollama pull mistral:7b
-# Update OLLAMA_MODEL=mistral:7b in docker-compose.yml
+Grafana Dashboard
+
+* Total Queries
+* Active Queries
+* Guardrail Triggers
+* Query Latency (P50/P95)
+* Retrieval Score Distribution
+* Ingest Throughput
+
+## Recommended Alerts
+
+| Alert                        | Meaning                     |
+| ---------------------------- | --------------------------- |
+| Guardrail spike              | Potential probing           |
+| P95 latency > 30s            | Ollama overloaded           |
+| Median retrieval score < 0.5 | Retrieval quality degrading |
+| Health check failure         | Service unavailable         |
+
+---
+
+# Evaluation
+
+Run RAGAS evaluation from the Streamlit dashboard or API.
+
+```bash
+curl -X POST http://localhost:8000/api/v1/evaluate \
+-H "X-API-Key: dev-key-1" \
+-H "Content-Type: application/json"
+```
+
+## Metrics
+
+| Metric            | Target |
+| ----------------- | ------ |
+| Faithfulness      | > 0.80 |
+| Answer Relevancy  | > 0.80 |
+| Context Precision | > 0.70 |
+| Context Recall    | > 0.70 |
+
+---
+
+# Extending the System
+
+## Change LLM
+
+```bash
+docker exec ollama ollama pull mistral:7b
+```
+
+Update:
+
+```env
+OLLAMA_MODEL=mistral:7b
+```
+
+Restart:
+
+```bash
 docker compose restart backend worker
-Wire a real MCP tool
-Edit backend/tools/mcp_tools.py and implement arun() in WebSearchTool:
-pythonasync def arun(self, query: str) -> str:
-    from mcp import ClientSession, StdioServerParameters
-    from mcp.client.stdio import stdio_client
-    server = StdioServerParameters(command="uvx", args=["mcp-server-brave-search"])
-    async with stdio_client(server) as (r, w):
-        async with ClientSession(r, w) as session:
-            await session.initialize()
-            result = await session.call_tool("brave_web_search", {"query": query})
-            return result.content[0].text
-Add a guardrail rule
-Edit backend/guardrails/checker.py — add a pattern to _INPUT_PATTERNS or _PII_PATTERNS.
-Enable GPU support
-Uncomment the deploy block under ollama in docker-compose.yml (requires NVIDIA drivers).
+```
 
-Deployment & Scaling
-Horizontal scaling
-bash# Scale API workers (stateless — scale freely)
+## Add MCP Tool
+
+Edit:
+
+```text
+backend/tools/mcp_tools.py
+```
+
+Implement:
+
+```python
+async def arun(self, query: str):
+    ...
+```
+
+## Add Guardrail Rules
+
+Edit:
+
+```text
+backend/guardrails/checker.py
+```
+
+Add patterns to:
+
+* `_INPUT_PATTERNS`
+* `_PII_PATTERNS`
+
+---
+
+# Deployment & Scaling
+
+## Scale API
+
+```bash
 docker compose up -d --scale backend=3
+```
 
-# Scale ingest workers
+## Scale Workers
+
+```bash
 docker compose up -d --scale worker=4
-Production checklist
+```
 
- Rotate JWT_SECRET_KEY to a cryptographically random value
- Replace API_KEYS with a database-backed key management system
- Add HTTPS termination (Nginx or Caddy)
- Move duplicate hash store from memory to Redis
- Configure Qdrant snapshots for backups
- Set up Grafana alerting
- Add request rate limiting per API key
- Replace Ollama with vLLM for high-throughput GPU inference
+### Production Checklist
 
+* Rotate JWT secret
+* Replace development API keys
+* Add HTTPS
+* Store hashes in Redis
+* Configure Qdrant snapshots
+* Configure Grafana alerts
+* Add rate limiting
+* Upgrade to vLLM for GPU inference
 
-Security
+---
 
-All processing is fully local — no document data sent to external APIs
-JWT tokens expire after 60 minutes
-Passwords hashed with bcrypt
-Input guardrails block prompt injection before hitting the LLM
-Output guardrails scan for PII before returning responses
-Guardrail trigger rate monitored in Prometheus
+# Security
 
+* Local-first processing
+* No document data leaves the environment
+* JWT expires after 60 minutes
+* Passwords hashed with bcrypt
+* Input guardrails prevent prompt injection
+* Output guardrails detect PII
+* Guardrail activity monitored in Prometheus
 
-⚠️ The default JWT_SECRET_KEY and API_KEYS in docker-compose.yml are for local development only. Change them before any production deployment.
+> Default JWT secrets and API keys are for development only. Replace before production deployment.
 
+---
 
-Contributing
+# Contributing
 
-Fork the repository
-Create a feature branch: git checkout -b feature/your-feature
-Make your changes
-Verify services start: ./scripts/start.sh
-Open a pull request
+```bash
+git checkout -b feature/my-feature
+```
 
-Ideas for contributions
+```bash
+./scripts/start.sh
+```
 
-Streaming responses from Ollama
-Conversation memory across turns
-DOCX, TXT, and Markdown file support
-Hybrid search (vector + BM25 keyword)
-Cross-encoder reranking after initial retrieval
-Multi-tenant collection isolation
-Document versioning and update detection
+Open a Pull Request.
 
+## Contribution Ideas
 
-License
-MIT License — see LICENSE for details.
+* Streaming responses
+* Conversation memory
+* DOCX support
+* Hybrid search
+* Cross-encoder reranking
+* Multi-tenant support
+* Document versioning
+
+---
+
+# License
+
+MIT License
+
+See `LICENSE` for details.
+
+---
+
+# Acknowledgements
+
+Built with:
+
+* LangGraph
+* Qdrant
+* Ollama
+* RAGAS
+* FastAPI
+* Redis
+* Streamlit
+* Prometheus
+* Grafana
+
 
 Acknowledgements
 Built with LangGraph, Qdrant, Ollama, RAGAS, and Streamlit.
