@@ -32,19 +32,6 @@ Production-ready — async job queue, JWT auth, Prometheus metrics, Grafana dash
 Extensible — MCP tool interface for plugging in web search, calculators, databases, and more
 Observable — every pipeline stage is instrumented and visualised
 
-## Key Features
-
-- PDF document ingestion and chunking
-- Vector search using Qdrant
-- Retrieval-Augmented Generation (RAG)
-- LangGraph workflow orchestration
-- Ollama-powered local LLM inference
-- Input and output guardrails
-- MCP-compatible tool integration
-- Background document processing with Redis + ARQ
-- RAGAS evaluation metrics dashboard
-- FastAPI production-ready backend
-- Streamlit user interface
   
 Architecture
 ## System Architecture
@@ -107,21 +94,40 @@ Final Response
 ```
 Features
 
-PDF Upload & Ingestion — async background processing, duplicate detection via SHA-256 hash
-Semantic Search — sentence-transformers embeddings + Qdrant HNSW vector search
-Local LLM — Ollama running Llama 3.1 8B, fully offline, no API costs
-LangGraph Pipeline — stateful graph with conditional edges and full observability
-MCP Tools — pluggable tool interface (calculator built-in, web search stub ready to wire)
-Guardrails — input (prompt injection detection) and output (PII leak prevention) checks
-JWT + API Key Auth — dual authentication, scope-based access control
-Background Queue — ARQ + Redis, uploads return instantly, ingest runs asynchronously
-RAGAS Evaluation — faithfulness, answer relevancy, context precision, context recall
-Prometheus + Grafana — pre-built dashboard, alerts-ready metrics
-Streamlit UI — dark-themed chat interface with source cards and eval dashboard
+## Features
+
+* **LangGraph RAG Pipeline** — Stateful workflow with conditional routing, retrieval, tool execution, generation, and guardrails.
+* **Local LLM Inference** — Ollama running Llama 3.1 8B fully offline with zero API costs.
+* **Semantic Search** — Sentence-transformers embeddings stored in Qdrant HNSW vector indexes.
+* **Async PDF Ingestion** — Background processing with ARQ and Redis.
+* **MCP Tool Integration** — Pluggable tool architecture with calculator support and web-search extensibility.
+* **Guardrails** — Prompt injection detection and PII prevention before responses are returned.
+* **JWT + API Key Authentication** — Dual authentication model with role-based access.
+* **RAGAS Evaluation** — Faithfulness, answer relevancy, context precision, and context recall scoring.
+* **Prometheus + Grafana Monitoring** — Real-time observability and alert-ready metrics.
+* **Streamlit Frontend** — Interactive chat interface with source attribution and evaluation dashboard.
+* **Duplicate Detection** — SHA-256 hashing prevents re-indexing identical documents.
 
 
 Tech Stack
-LayerTechnologyLLM InferenceOllama (Llama 3.1 8B)Embeddingssentence-transformers (all-MiniLM-L6-v2)Vector DatabaseQdrantPipeline OrchestrationLangGraphBackend APIFastAPI + uvicornFrontend UIStreamlitBackground JobsARQ + RedisAuthpython-jose (JWT) + passlib (bcrypt)EvaluationRAGASMonitoringPrometheus + GrafanaPDF ParsingpdfplumberChunkingLangChain RecursiveCharacterTextSplitterDeploymentDocker Compose
+## Tech Stack
+
+| Layer                  | Technology                               |
+| ---------------------- | ---------------------------------------- |
+| LLM Inference          | Ollama (Llama 3.1 8B)                    |
+| Embeddings             | sentence-transformers (all-MiniLM-L6-v2) |
+| Vector Database        | Qdrant                                   |
+| Pipeline Orchestration | LangGraph                                |
+| Backend API            | FastAPI + Uvicorn                        |
+| Frontend UI            | Streamlit                                |
+| Background Jobs        | ARQ + Redis                              |
+| Authentication         | python-jose (JWT) + passlib (bcrypt)     |
+| Evaluation             | RAGAS                                    |
+| Monitoring             | Prometheus + Grafana                     |
+| PDF Parsing            | pdfplumber                               |
+| Chunking               | LangChain RecursiveCharacterTextSplitter |
+| Deployment             | Docker Compose                           |
+
 
 Prerequisites
 
