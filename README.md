@@ -157,7 +157,6 @@ Type your question in the chat box
 
 
 Project Structure
-## Project Structure
 
 ```text
 enterprise-ai-assistant/
@@ -217,7 +216,6 @@ enterprise-ai-assistant/
 ```
 How It Works
 PDF Ingestion
-## PDF Ingestion Pipeline
 
 1. User uploads a PDF through the Streamlit interface.
 2. FastAPI saves the file and enqueues an ARQ background job.
@@ -266,13 +264,11 @@ PDF Ingestion
 
 ### Response Payload
 
-* Generated answer
-* Source chunks
-* Page references
-* Latency metrics
-* Guardrail status
-
----
+- Generated answer
+- Source chunks
+- Page references
+- Latency metrics
+- Guardrail status
 
 # API Reference
 
