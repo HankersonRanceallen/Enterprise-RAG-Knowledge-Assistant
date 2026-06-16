@@ -80,42 +80,31 @@ Architecture
 ```
 ## LangGraph Workflow
 
-```mermaid
-flowchart TD
-
-    Q["User Question"]
-
-    GI["Input Guardrails"]
-
-    RET["Retrieve<br/>Embed Query<br/>Qdrant Similarity Search"]
-
-    MCP["Tool Layer<br/>Calculator<br/>Web Search<br/>Custom MCP Tools"]
-
-    GEN["Generate Response<br/>Ollama Llama 3.1 8B"]
-
-    GO["Output Guardrails"]
-
-    BLOCK["Request Blocked"]
-
-    ENDNODE["Final Response"]
-
-    Q --> GI
-
-    GI -->|Clean| RET
-    GI -->|Prompt Injection Detected| BLOCK
-
-    RET --> MCP
-    MCP --> GEN
-
-    GEN --> GO
-
-    GO -->|Clean| ENDNODE
-    GO -->|PII Detected| BLOCK
-
-    BLOCK --> ENDNODE
+```text
+[Question]
+     │
+     ▼
+Input Guardrails
+     │
+     ├── Blocked ─────────► END
+     │
+     ▼
+Retrieve from Qdrant
+     │
+     ▼
+MCP Tools
+     │
+     ▼
+Generate Response
+     │
+     ▼
+Output Guardrails
+     │
+     ├── PII Detected ───► END
+     │
+     ▼
+Final Response
 ```
-
-
 Features
 
 PDF Upload & Ingestion — async background processing, duplicate detection via SHA-256 hash
